@@ -2,13 +2,18 @@
 
 ![Java](https://img.shields.io/badge/Java-17-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-brightgreen)
-![Build](https://img.shields.io/badge/build-Maven-blue)
+![Maven](https://img.shields.io/badge/build-Maven-blue)
 ![Tests](https://img.shields.io/badge/tests-21%20passing-success)
 ![Patterns](https://img.shields.io/badge/design%20patterns-13-purple)
 
-A Spring Boot web application that simulates how an airport handles a flight from creation to baggage delivery, built to demonstrate **13 classic (GoF) design patterns working together in one realistic workflow**.
+A Spring Boot web application that simulates how an airport takes a flight from creation to baggage delivery, built to show **13 classic (GoF) design patterns working together in one realistic workflow** instead of in isolated toy examples.
 
-Staff create flights, clear them for landing, land them, assign baggage belts, set the expected baggage slot and process baggage. Passengers see live flight and baggage status. Every status change produces notifications for the passenger, the display board, staff and the control center.
+**Live demo:** https://airport-baggage-system.onrender.com
+(hosted on a free tier: the first request after inactivity can take about a minute to wake the app up)
+
+## What it does
+
+Airport staff create flights, clear them for landing, land them, assign baggage belts, set the expected baggage slot and process baggage. Passengers see live flight and baggage status. Every status change produces notifications for the passenger, the display board, staff and the control center.
 
 Example: flight `AI-202` (Domestic) lands at 10:00 AM, gets belt `B3` automatically, and the expected baggage slot becomes `10:15 AM - 10:30 AM`.
 
@@ -18,12 +23,15 @@ Built for the Design Patterns Laboratory course.
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
+- [Quick Start](#quick-start)
+- [Try It in 2 Minutes](#try-it-in-2-minutes)
 - [How It Works](#how-it-works)
 - [Design Patterns](#design-patterns)
 - [Architecture](#architecture)
+- [REST API](#rest-api)
 - [Project Structure](#project-structure)
 - [Testing](#testing)
+- [Deployment](#deployment)
 - [Documentation](#documentation)
 - [Limitations](#limitations)
 - [Project History](#project-history)
@@ -52,8 +60,9 @@ Built for the Design Patterns Laboratory course.
 | Build | Maven |
 | Testing | JUnit 5 |
 | Storage | In-memory (no database) |
+| Deployment | Docker, Render |
 
-## Getting Started
+## Quick Start
 
 Requires JDK 17+ and Maven 3.8+.
 
@@ -65,15 +74,7 @@ mvn spring-boot:run
 
 Open http://localhost:8080. Backend and frontend start together.
 
-Run the tests:
-
-```bash
-mvn test
-```
-
-### Demo logins
-
-Hardcoded, for lab use only.
+Demo logins (hardcoded, for lab use only):
 
 | Username | Password | Role |
 |---|---|---|
@@ -82,6 +83,18 @@ Hardcoded, for lab use only.
 | passenger1 | pass123 | Passenger |
 
 Without logging in you are a read-only Passenger. The app starts with three sample flights: `AI-202` (Domestic), `6E-451` (International) and `UK-803` (Cargo).
+
+## Try It in 2 Minutes
+
+1. Log in as `staff1`.
+2. Select `AI-202` and click **Clear for landing**. The Last result panel shows each step of the clearance chain.
+3. Click **Mark landed**. A belt and an expected baggage slot appear automatically.
+4. Choose **Auto belt: Priority** and click **Assign belt** to move the flight to a priority belt.
+5. Click **Process baggage** and compare the workflow steps for Regular/Manual vs Priority/Automated.
+6. Click **Undo last update** to roll the flight back to its previous saved state.
+7. Log out and notice that action buttons are disabled for a Passenger.
+
+The full presentation script is in [docs/DEMO.md](docs/DEMO.md).
 
 ## How It Works
 
@@ -97,7 +110,7 @@ flowchart LR
     E -.->|Undo last update| D
 ```
 
-### Request flow
+### Which patterns run at each step
 
 ```
 Create  : Builder -> Factory Method -> Abstract Factory (gate + baggage service)
@@ -110,7 +123,7 @@ Always  : Observer notifies passenger, display board and staff on every status c
 
 ### Baggage belts
 
-Four belts `B1` to `B4`. `B1` and `B2` are priority belts, `B3` and `B4` are regular. The Normal strategy prefers regular belts, the Priority strategy prefers priority belts, and both fall back to any free belt. A belt can never be held by two flights.
+Four belts, `B1` to `B4`. `B1` and `B2` are priority belts, `B3` and `B4` are regular. The Normal strategy prefers regular belts, the Priority strategy prefers priority belts, and both fall back to any free belt. A belt can never be held by two flights.
 
 ## Design Patterns
 
@@ -130,7 +143,7 @@ Four belts `B1` to `B4`. `B1` and `B2` are priority belts, `B3` and `B4` are reg
 | 12 | Strategy | Interchangeable belt-assignment rules | `BeltAssignmentStrategy`, `BeltAssigner` |
 | 13 | Memento | Undo a wrong update from a real snapshot | `FlightSnapshot`, `FlightHistory` |
 
-Full details, including where each pattern runs and how they cooperate without overlapping, are in [docs/PATTERNS.md](docs/PATTERNS.md).
+Several patterns are deliberately kept separate so they do not overlap: Mediator coordinates departments while Chain still performs the clearance checks, Strategy picks the belt while Template Method fixes the order of baggage steps and Bridge supplies how handling is done, and Observer only notifies while Memento only saves and restores. Details are in [docs/PATTERNS.md](docs/PATTERNS.md).
 
 ## Architecture
 
@@ -153,11 +166,36 @@ flowchart TD
 
 Controllers stay thin and delegate to `AirportService`, which is where the patterns are wired together. All state lives in the `AirportControlCenter` singleton.
 
+## REST API
+
+Protected endpoints read the role from the `X-Role` header (the frontend sets it after login). A few main endpoints:
+
+| Method and path | Role | Purpose |
+|---|---|---|
+| `POST /api/auth/login` | any | Log in, returns username and role |
+| `GET /api/flights` | any | List all flights |
+| `POST /api/flights` | any | Create a flight (Builder) |
+| `POST /api/flights/{id}/clear` | Staff/Admin | Clear for landing (Mediator + Chain) |
+| `POST /api/flights/{id}/land` | Staff/Admin | Land, assign belt and slot |
+| `PUT /api/flights/{id}/baggage/status` | Staff/Admin | Process baggage (Template Method + Bridge) |
+| `POST /api/flights/{id}/restore` | Staff/Admin | Undo last update (Memento) |
+
+Example:
+
+```bash
+curl http://localhost:8080/api/flights
+
+curl -X POST http://localhost:8080/api/flights/FL1/clear -H "X-Role: STAFF"
+```
+
+Flight IDs look like `FL1`, `FL2`. The complete list of endpoints with request bodies is in [docs/API.md](docs/API.md).
+
 ## Project Structure
 
 ```
 .
 ├── pom.xml
+├── Dockerfile
 ├── README.md
 ├── docs/
 │   ├── PATTERNS.md        pattern-by-pattern map
@@ -192,6 +230,10 @@ Controllers stay thin and delegate to `AirportService`, which is where the patte
 
 ## Testing
 
+```bash
+mvn test
+```
+
 `PatternsTest` contains 21 JUnit 5 tests (no Spring context) covering all 13 patterns, including:
 
 - Builder validation of required fields
@@ -200,6 +242,25 @@ Controllers stay thin and delegate to `AirportService`, which is where the patte
 - Normal vs Priority belt rules and belt occupancy
 - Template Method: identical step order, differing steps
 - Memento: flight state restored, belt released, baggage record removed, unrelated flights untouched, role check, 5-snapshot limit
+
+## Deployment
+
+The app reads its port from the `PORT` environment variable (default 8080), so it runs on most hosting platforms without changes.
+
+**Docker**
+
+```bash
+docker build -t airport .
+docker run -p 8080:8080 airport
+```
+
+**Render (what the live demo uses)**
+
+1. Create a new Web Service on [render.com](https://render.com) from this GitHub repository.
+2. Choose Docker as the runtime (the included `Dockerfile` is detected automatically) and the Free instance type.
+3. Deploy. Every push to `main` redeploys automatically.
+
+Free instances sleep after 15 minutes without traffic, and because data is in-memory, it resets to the three sample flights when the app restarts.
 
 ## Documentation
 
