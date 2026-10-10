@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Airport Flight &amp; Baggage Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>&#9992; Airport Flight &amp; Baggage Management</h1>
+    <small>Design Patterns Lab mini-project &middot; 13 patterns</small>
+  </div>
+  <div class="login">
+    <span id="who">Viewing as PASSENGER (read-only)</span>
+    <input id="user" placeholder="username" size="10">
+    <input id="pass" type="password" placeholder="password" size="10">
+    <button id="loginBtn">Login</button>
+    <button id="logoutBtn" class="secondary hidden">Logout</button>
+  </div>
+</header>
+<div id="msg" class="msg hidden"></div>
+
+<main>
+  <section class="wide">
+    <h2>Flights</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Flight</th><th>Airline</th><th>Type</th><th>Route</th><th>Landing</th>
+          <th>Gate</th><th>Status</th><th>Belt</th><th>Expected baggage</th><th></th></tr></thead>
+        <tbody id="flights"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Create flight <small>(Builder + Factory Method)</small></h2>
+    <div class="form">
+      <select id="c_type"><option>DOMESTIC</option><option>INTERNATIONAL</option><option>CARGO</option></select>
+      <input id="c_number" placeholder="Flight number *  e.g. AI-305">
+      <input id="c_airline" placeholder="Airline">
+      <input id="c_source" placeholder="Origin *">
+      <input id="c_dest" placeholder="Destination *">
+      <input id="c_time" placeholder="Landing time *  e.g. 10:00 AM">
+      <input id="c_gate" placeholder="Gate (optional)">
+      <select id="c_belt"><option value="">Belt (optional)</option></select>
+      <button id="createBtn">Create flight</button>
+    </div>
+  </section>
+
+  <section id="actions">
+    <h2>Flight actions <small id="selLabel">select a flight</small></h2>
+    <div class="actionrow">
+      <button data-act="clear">Clear for landing</button>
+      <button data-act="land">Mark landed</button>
+      <button data-act="restore" class="warn">Undo last update</button>
+    </div>
+    <div class="actionrow">
+      <select id="a_strategy">
+        <option value="NORMAL">Auto belt: Normal</option>
+        <option value="PRIORITY">Auto belt: Priority</option>
+        <option value="MANUAL">Manual belt</option>
+      </select>
+      <select id="a_belt"></select>
+      <button data-act="belt">Assign belt</button>
+    </div>
+    <div class="actionrow">
+      <input id="a_slot" placeholder="Slot (blank = auto)  10:15 AM - 10:30 AM">
+      <button data-act="slot">Set slot</button>
+    </div>
+    <div class="actionrow">
+      <select id="a_btype"><option>Regular</option><option>Priority</option></select>
+      <select id="a_bhandle"><option>Manual</option><option>Automated</option></select>
+      <button data-act="baggage">Process baggage</button>
+    </div>
+    <div class="actionrow">
+      <input id="k_number" placeholder="New flight number *">
+      <input id="k_dest" placeholder="New destination">
+      <input id="k_time" placeholder="New landing time">
+      <button data-act="clone">Clone flight</button>
+    </div>
+    <h3>Saved states for this flight <small>(Memento history)</small></h3>
+    <ul id="history" class="plain"></ul>
+  </section>
+
+  <section>
+    <h2>Last result</h2>
+    <div id="result" class="result">Run an action to see the backend response (clearance steps, baggage workflow steps...).</div>
+  </section>
+
+  <section>
+    <h2>Notifications <small>(Observer + Mediator log)</small></h2>
+    <ul id="notes" class="plain notes"></ul>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
